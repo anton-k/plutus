@@ -14,6 +14,7 @@ module Ledger.Constraints.OnChain where
 import           PlutusTx                         (IsData (..))
 import           PlutusTx.Prelude
 
+import           Data.Default                     (Default (def))
 import           Ledger.Constraints.TxConstraints
 import qualified Ledger.TimeSlot                  as TimeSlot
 import qualified Plutus.V1.Ledger.Address         as Address
@@ -55,7 +56,7 @@ checkTxConstraint ScriptContext{scriptContextTxInfo} = \case
         $ dv `elem` fmap snd (txInfoData scriptContextTxInfo)
     MustValidateIn interval ->
         traceIfFalse "Wrong validation interval"
-        $ TimeSlot.slotRangeToPOSIXTimeRange interval `contains` txInfoValidRange scriptContextTxInfo
+        $ TimeSlot.slotRangeToPOSIXTimeRange def interval `contains` txInfoValidRange scriptContextTxInfo
     MustBeSignedBy pubKey ->
         traceIfFalse "Missing signature"
         $ scriptContextTxInfo `V.txSignedBy` pubKey

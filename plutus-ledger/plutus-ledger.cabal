@@ -85,6 +85,7 @@ library
         cborg -any,
         containers -any,
         cryptonite >=0.25,
+        data-default -any,
         flat -any,
         hashable -any,
         hedgehog -any,
@@ -99,6 +100,7 @@ library
         plutus-tx -any,
         serialise -any,
         servant -any,
+        scientific -any,
         template-haskell -any,
         text -any,
         transformers -any,
@@ -125,6 +127,7 @@ test-suite plutus-ledger-test
     build-depends:
         base >=4.9 && <5,
         containers -any,
+        data-default -any,
         hedgehog -any,
         tasty -any,
         tasty-hedgehog -any,

@@ -39,11 +39,6 @@ module Cardano.Node.Types
     , MockServerConfig (..)
     , BlockReaperConfig (..)
 
-    -- ** Slot / timing
-    , SlotConfig(..)
-    , slotNumber
-    , currentSlot
-
     -- * newtype wrappers
     , NodeUrl (..)
     )
@@ -67,10 +62,10 @@ import           Cardano.BM.Data.Tracer         (ToObject (..))
 import           Cardano.BM.Data.Tracer.Extras  (Tagged (..), mkObjectStr)
 import           Cardano.Chain                  (MockNodeServerChainState, fromEmulatorChainState)
 import qualified Cardano.Protocol.Socket.Client as Client
-import           Cardano.Protocol.Socket.Type   (SlotConfig (..), currentSlot, slotNumber)
 import           Control.Monad.Freer.Extras.Log (LogMessage, LogMsg (..))
 import           Control.Monad.Freer.Reader     (Reader)
 import           Control.Monad.Freer.State      (State)
+import           Ledger.TimeSlot                (SlotConfig)
 import qualified Plutus.Contract.Trace          as Trace
 import           Wallet.Emulator                (Wallet)
 import qualified Wallet.Emulator                as EM

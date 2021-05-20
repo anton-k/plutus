@@ -44,6 +44,7 @@ import           Control.Lens             (makeClassyPrisms, review)
 import           Control.Monad            (void)
 import           Control.Monad.Error.Lens (throwing)
 import           Data.Aeson               (FromJSON, ToJSON)
+import           Data.Default             (Default (def))
 import           GHC.Generics             (Generic)
 
 import           Ledger                   (Datum (..), DatumHash, PubKeyHash, Slot, TxId, TxOutTx (..), ValidatorHash,
@@ -198,10 +199,10 @@ validate :: EscrowParams DatumHash -> PubKeyHash -> Action -> ScriptContext -> B
 validate EscrowParams{escrowDeadline, escrowTargets} contributor action ScriptContext{scriptContextTxInfo} =
     case action of
         Redeem ->
-            traceIfFalse "escrowDeadline-after" (TimeSlot.slotToPOSIXTime escrowDeadline `after` txInfoValidRange scriptContextTxInfo)
+            traceIfFalse "escrowDeadline-after" (TimeSlot.slotToBeginPOSIXTime def escrowDeadline `after` txInfoValidRange scriptContextTxInfo)
             && traceIfFalse "meetsTarget" (all (meetsTarget scriptContextTxInfo) escrowTargets)
         Refund ->
-            traceIfFalse "escrowDeadline-before" (TimeSlot.slotToPOSIXTime escrowDeadline `before` txInfoValidRange scriptContextTxInfo)
+            traceIfFalse "escrowDeadline-before" (TimeSlot.slotToEndPOSIXTime def escrowDeadline `before` txInfoValidRange scriptContextTxInfo)
             && traceIfFalse "txSignedBy" (scriptContextTxInfo `txSignedBy` contributor)
 
 typedValidator :: EscrowParams Datum -> Scripts.TypedValidator Escrow

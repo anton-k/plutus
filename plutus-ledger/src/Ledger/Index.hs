@@ -46,6 +46,7 @@ import           Control.Monad.Except             (ExceptT, MonadError (..), run
 import           Control.Monad.Reader             (MonadReader (..), ReaderT (..), ask)
 import           Control.Monad.Writer             (MonadWriter, Writer, runWriter, tell)
 import           Data.Aeson                       (FromJSON, ToJSON)
+import           Data.Default                     (Default (def))
 import           Data.Foldable                    (asum, fold, foldl', traverse_)
 import qualified Data.Map                         as Map
 import qualified Data.Set                         as Set
@@ -373,7 +374,7 @@ mkTxInfo tx = do
             , txInfoFee = txFee tx
             , txInfoDCert = [] -- DCerts not supported in emulator
             , txInfoWdrl = [] -- Withdrawals not supported in emulator
-            , txInfoValidRange = slotRangeToPOSIXTimeRange $ txValidRange tx
+            , txInfoValidRange = slotRangeToPOSIXTimeRange def $ txValidRange tx
             , txInfoSignatories = fmap pubKeyHash $ Map.keys (tx ^. signatures)
             , txInfoData = Map.toList (tx ^. datumWitnesses)
             , txInfoId = txId tx

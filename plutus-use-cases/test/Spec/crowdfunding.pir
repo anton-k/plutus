@@ -206,6 +206,21 @@
               )
             )
           )
+          (datatypebind
+            (datatype
+              (tyvardecl SlotConfig (type))
+
+              SlotConfig_match
+              (vardecl
+                SlotConfig (fun (con integer) (fun (con integer) SlotConfig))
+              )
+            )
+          )
+          (termbind
+            (nonstrict)
+            (vardecl fDefaultSlotConfig_cdef SlotConfig)
+            [ [ SlotConfig (con integer 3) ] (con integer 1596059091) ]
+          )
           (termbind
             (strict)
             (vardecl equalsInteger (fun (con integer) (fun (con integer) Bool)))
@@ -2274,30 +2289,119 @@
           (termbind
             (strict)
             (vardecl
-              posixTimeRangeToSlotRange
-              (fun [Interval (con integer)] [Interval (con integer)])
+              posixTimeToSlot (fun SlotConfig (fun (con integer) (con integer)))
             )
             (lam
-              ptr
-              [Interval (con integer)]
-              [
-                {
-                  [ { Interval_match (con integer) } ptr ]
-                  [Interval (con integer)]
-                }
-                (lam
-                  from
-                  [LowerBound (con integer)]
+              ds
+              SlotConfig
+              (lam
+                ds
+                (con integer)
+                [
+                  { [ SlotConfig_match ds ] (con integer) }
                   (lam
-                    to
-                    [UpperBound (con integer)]
-                    [
+                    ds
+                    (con integer)
+                    (lam
+                      ds
+                      (con integer)
                       [
-                        { Interval (con integer) }
+                        [
+                          (builtin divideInteger)
+                          [ [ (builtin subtractInteger) ds ] ds ]
+                        ]
+                        ds
+                      ]
+                    )
+                  )
+                ]
+              )
+            )
+          )
+          (termbind
+            (strict)
+            (vardecl
+              posixTimeRangeToSlotRange
+              (fun SlotConfig (fun [Interval (con integer)] [Interval (con integer)]))
+            )
+            (lam
+              sc
+              SlotConfig
+              (lam
+                ptr
+                [Interval (con integer)]
+                [
+                  {
+                    [ { Interval_match (con integer) } ptr ]
+                    [Interval (con integer)]
+                  }
+                  (lam
+                    from
+                    [LowerBound (con integer)]
+                    (lam
+                      to
+                      [UpperBound (con integer)]
+                      [
+                        [
+                          { Interval (con integer) }
+                          [
+                            {
+                              [ { LowerBound_match (con integer) } from ]
+                              [LowerBound (con integer)]
+                            }
+                            (lam
+                              e
+                              [Extended (con integer)]
+                              (lam
+                                c
+                                Bool
+                                [
+                                  [
+                                    { LowerBound (con integer) }
+                                    [
+                                      [
+                                        [
+                                          [
+                                            {
+                                              [
+                                                { Extended_match (con integer) }
+                                                e
+                                              ]
+                                              (fun Unit [Extended (con integer)])
+                                            }
+                                            (lam
+                                              a
+                                              (con integer)
+                                              (lam
+                                                thunk
+                                                Unit
+                                                [
+                                                  { Finite (con integer) }
+                                                  [ [ posixTimeToSlot sc ] a ]
+                                                ]
+                                              )
+                                            )
+                                          ]
+                                          (lam
+                                            thunk Unit { NegInf (con integer) }
+                                          )
+                                        ]
+                                        (lam thunk Unit { PosInf (con integer) }
+                                        )
+                                      ]
+                                      Unit
+                                    ]
+                                  ]
+                                  c
+                                ]
+                              )
+                            )
+                          ]
+                        ]
                         [
                           {
-                            [ { LowerBound_match (con integer) } from ]
-                            [LowerBound (con integer)]
+                            [ { UpperBound_match (con integer) } to ]
+                            [UpperBound (con integer)]
                           }
                           (lam
                             e
@@ -2307,7 +2411,7 @@
                               Bool
                               [
                                 [
-                                  { LowerBound (con integer) }
+                                  { UpperBound (con integer) }
                                   [
                                     [
                                       [
@@ -2326,12 +2430,7 @@
                                               Unit
                                               [
                                                 { Finite (con integer) }
-                                                [
-                                                  [
-                                                    (builtin subtractInteger) a
-                                                  ]
-                                                  (con integer 1596059091)
-                                                ]
+                                                [ [ posixTimeToSlot sc ] a ]
                                               ]
                                             )
                                           )
@@ -2350,60 +2449,10 @@
                           )
                         ]
                       ]
-                      [
-                        {
-                          [ { UpperBound_match (con integer) } to ]
-                          [UpperBound (con integer)]
-                        }
-                        (lam
-                          e
-                          [Extended (con integer)]
-                          (lam
-                            c
-                            Bool
-                            [
-                              [
-                                { UpperBound (con integer) }
-                                [
-                                  [
-                                    [
-                                      [
-                                        {
-                                          [ { Extended_match (con integer) } e ]
-                                          (fun Unit [Extended (con integer)])
-                                        }
-                                        (lam
-                                          a
-                                          (con integer)
-                                          (lam
-                                            thunk
-                                            Unit
-                                            [
-                                              { Finite (con integer) }
-                                              [
-                                                [ (builtin subtractInteger) a ]
-                                                (con integer 1596059091)
-                                              ]
-                                            ]
-                                          )
-                                        )
-                                      ]
-                                      (lam thunk Unit { NegInf (con integer) })
-                                    ]
-                                    (lam thunk Unit { PosInf (con integer) })
-                                  ]
-                                  Unit
-                                ]
-                              ]
-                              c
-                            ]
-                          )
-                        )
-                      ]
-                    ]
+                    )
                   )
-                )
-              ]
+                ]
+              )
             )
           )
           (termbind
@@ -2853,7 +2902,10 @@
                                                       ds
                                                       (con bytestring)
                                                       [
-                                                        posixTimeRangeToSlotRange
+                                                        [
+                                                          posixTimeRangeToSlotRange
+                                                          fDefaultSlotConfig_cdef
+                                                        ]
                                                         ds
                                                       ]
                                                     )
@@ -2995,7 +3047,10 @@
                                                         ds
                                                         (con bytestring)
                                                         [
-                                                          posixTimeRangeToSlotRange
+                                                          [
+                                                            posixTimeRangeToSlotRange
+                                                            fDefaultSlotConfig_cdef
+                                                          ]
                                                           ds
                                                         ]
                                                       )

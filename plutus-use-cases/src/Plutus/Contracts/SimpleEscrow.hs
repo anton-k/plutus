@@ -22,6 +22,7 @@ import           Control.Lens             (makeClassyPrisms, review)
 import           Control.Monad            (void)
 import           Control.Monad.Error.Lens (throwing)
 import           Data.Aeson               (FromJSON, ToJSON)
+import           Data.Default             (Default (def))
 import           GHC.Generics             (Generic)
 
 import           Ledger                   (PubKeyHash, Slot, TxId, txId, txSignedBy, valuePaidTo)
@@ -110,7 +111,7 @@ validate params action ScriptContext{scriptContextTxInfo=txInfo} =
   case action of
     Redeem ->
           -- Can't redeem after the deadline
-      let notLapsed = TimeSlot.slotToPOSIXTime (deadline params) `after` txInfoValidRange txInfo
+      let notLapsed = TimeSlot.slotToBeginPOSIXTime def (deadline params) `after` txInfoValidRange txInfo
           -- Payee has to have been paid
           paid      = valuePaidTo txInfo (payee params) `geq` expecting params
        in traceIfFalse "escrow-deadline-lapsed" notLapsed
@@ -119,7 +120,7 @@ validate params action ScriptContext{scriptContextTxInfo=txInfo} =
           -- Has to be the person that locked value requesting the refund
       let signed = txInfo `txSignedBy` payee params
           -- And we only refund after the deadline has passed
-          lapsed = TimeSlot.slotToPOSIXTime (deadline params) `before` txInfoValidRange txInfo
+          lapsed = TimeSlot.slotToEndPOSIXTime def (deadline params) `before` txInfoValidRange txInfo
        in traceIfFalse "escrow-not-signed" signed
           && traceIfFalse "refund-too-early" lapsed
 

@@ -15,6 +15,7 @@ module Vesting where
 -- TRIM TO HERE
 -- Vesting scheme as a PLC contract
 import           Control.Monad            (void, when)
+import           Data.Default             (Default (def))
 import qualified Data.Map                 as Map
 import qualified Data.Text                as T
 
@@ -91,7 +92,7 @@ totalAmount VestingParams{vestingTranche1,vestingTranche2} =
 availableFrom :: VestingTranche -> Time.POSIXTimeRange -> Value
 availableFrom (VestingTranche d v) range =
     -- The valid range is an open-ended range starting from the tranche vesting date
-    let validRange = Interval.from (TimeSlot.slotToPOSIXTime d)
+    let validRange = Interval.from (TimeSlot.slotToBeginPOSIXTime def d)
     -- If the valid range completely contains the argument range (meaning in particular
     -- that the start slot of the argument range is after the tranche vesting date), then
     -- the money in the tranche is available, otherwise nothing is available.

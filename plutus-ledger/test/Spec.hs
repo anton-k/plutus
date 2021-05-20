@@ -13,6 +13,7 @@ import qualified Data.Aeson.Extras           as JSON
 import qualified Data.Aeson.Internal         as Aeson
 import qualified Data.ByteString             as BSS
 import qualified Data.ByteString.Lazy        as BSL
+import           Data.Default                (Default (def))
 import           Data.Either                 (isLeft, isRight)
 import           Data.Foldable               (fold, foldl', traverse_)
 import           Data.List                   (sort)
@@ -34,6 +35,7 @@ import qualified Ledger.Generators           as Gen
 import qualified Ledger.Index                as Index
 import qualified Ledger.Interval             as Interval
 import qualified Ledger.Scripts              as Scripts
+import           Ledger.TimeSlot             (SlotConfig (..))
 import qualified Ledger.TimeSlot             as TimeSlot
 import           Ledger.Value                (CurrencySymbol, Value (Value))
 import qualified Ledger.Value                as Value
@@ -44,7 +46,7 @@ import qualified PlutusTx.AssocMap           as AMap
 import qualified PlutusTx.AssocMap           as AssocMap
 import qualified PlutusTx.Builtins           as Builtins
 import qualified PlutusTx.Prelude            as PlutusTx
-import           Test.Tasty
+import           Test.Tasty                  hiding (after)
 import           Test.Tasty.HUnit            (testCase)
 import qualified Test.Tasty.HUnit            as HUnit
 import           Test.Tasty.Hedgehog         (testProperty)
@@ -95,8 +97,14 @@ tests = testGroup "all tests" [
         testProperty "missing value spent" missingValueSpentProp
         ],
     testGroup "TimeSlot" [
-        initialSlotTime,
-        testProperty " inverse property" inverseProp
+        testProperty "time range of starting slot" initialSlotToTimeProp,
+        testProperty "slot of starting time range" initialTimeToSlotProp,
+        testProperty "slot number >=0 when converting from time" slotIsPositiveProp,
+        testProperty "conversion inverse property" timeSlotInverseProp,
+        testProperty "slot to time range inverse to slot range"
+          slotToTimeRangeBoundsInverseProp,
+        testProperty "slot to time range has lower bound <= upper bound"
+          slotToTimeRangeHasLowerAndUpperBoundsProp
         ]
     ]
 
@@ -272,14 +280,77 @@ nonNegativeValue =
         <*> Gen.element tokenNames
         <*> Gen.integral (Range.linear 0 10000)
 
-initialSlotTime :: TestTree
-initialSlotTime = do
-  testCase "Initial slot to time" $
-    HUnit.assertBool "should be equal to Shelley launch date" $ TimeSlot.slotToPOSIXTime (Slot 0) == POSIXTime 1596059091
+-- | Asserting that time range of 'scZeroSlotTime' to ('scZeroSlotTime' + 'scSlotLength')
+-- is Slot 0 and the time after that is Slot 1.
+initialSlotToTimeProp :: Property
+initialSlotToTimeProp = property $ do
+  sc <- forAll slotConfigGen
+  n <- forAll $ Gen.integral (fromIntegral <$> Range.linear 0 (scSlotLength sc))
+  let time = fromIntegral (TimeSlot.scZeroSlotTime sc) + fromIntegral n
+  if n >= scSlotLength sc
+     then Hedgehog.assert $ TimeSlot.posixTimeToSlot sc time == Slot 1
+     else Hedgehog.assert $ TimeSlot.posixTimeToSlot sc time == Slot 0
 
-inverseProp :: Property
-inverseProp = property $ do
-  [b, e] <- forAll $ sort <$> replicateM 2 (Gen.integral (fromIntegral <$> Range.linearBounded @Int))
-  let slotRange = Interval.interval (Slot b) (Slot e)
-  Hedgehog.assert $ slotRange == TimeSlot.posixTimeRangeToSlotRange (TimeSlot.slotRangeToPOSIXTimeRange slotRange)
+-- | Asserting that Slot 0 goes from 'scZeroSlotTime' to
+-- ('scZeroSlotTime' + 'scSlotLength' - 1)
+initialTimeToSlotProp :: Property
+initialTimeToSlotProp = property $ do
+  sc <- forAll slotConfigGen
+  let beginTime = TimeSlot.scZeroSlotTime sc
+      endTime = fromIntegral (TimeSlot.scZeroSlotTime sc) +
+        fromIntegral (TimeSlot.scSlotLength sc) - 1
+      expectedTimeRange = interval beginTime endTime
+  Hedgehog.assert $ TimeSlot.slotToPOSIXTimeRange sc 0 == expectedTimeRange
 
+-- | Converting from POSIXTime to Slot should always produce a non negative slot number.
+slotIsPositiveProp :: Property
+slotIsPositiveProp = property $ do
+  sc <- forAll slotConfigGen
+  posixTime <- forAll $ posixTimeGen sc
+  Hedgehog.assert $ TimeSlot.posixTimeToSlot sc posixTime >= 0
+
+-- | Inverse property between 'posixTimeRangeToSlotRange' and 'slotRangeToPOSIXTimeRange'.
+timeSlotInverseProp :: Property
+timeSlotInverseProp = property $ do
+  sc <- forAll slotConfigGen
+  slotRange <- forAll slotRangeGen
+  Hedgehog.assert $
+    slotRange == TimeSlot.posixTimeRangeToSlotRange sc (TimeSlot.slotRangeToPOSIXTimeRange sc slotRange)
+
+-- | 'POSIXTimeRange' from 'Slot' should have lower bound lower or equal than upper bound
+slotToTimeRangeHasLowerAndUpperBoundsProp :: Property
+slotToTimeRangeHasLowerAndUpperBoundsProp = property $ do
+  sc <- forAll slotConfigGen
+  slot <- forAll slotGen
+  let (Interval (LowerBound t1 _) (UpperBound t2 _)) = TimeSlot.slotToPOSIXTimeRange sc slot
+  Hedgehog.assert $ t1 <= t2
+
+-- | Inverse property between 'slotToPOSIXTimeRange and 'posixTimeSlot'.
+slotToTimeRangeBoundsInverseProp :: Property
+slotToTimeRangeBoundsInverseProp = property $ do
+  sc <- forAll slotConfigGen
+  slot <- forAll slotGen
+  let slotRange = TimeSlot.posixTimeToSlot sc PlutusTx.<$> TimeSlot.slotToPOSIXTimeRange sc slot
+  Hedgehog.assert $ interval slot slot == slotRange
+
+-- | Generate a 'SlotRange' where the lower bound if less or equal than the upper bound.
+slotRangeGen :: (MonadFail m, Hedgehog.MonadGen m) => m SlotRange
+slotRangeGen = do
+  [b, e] <- sort <$> replicateM 2 slotGen
+  return $ Interval.interval b e
+
+-- | Generate a 'Slot' where the lowest slot number is 0.
+slotGen :: (Hedgehog.MonadGen m) => m Slot
+slotGen = Slot <$> Gen.integral (fromIntegral <$> Range.linear 0 10000)
+
+-- | Generate a 'POSIXTime' where the lowest value is 'scZeroSlotTime'.
+posixTimeGen :: (Hedgehog.MonadGen m) => SlotConfig -> m POSIXTime
+posixTimeGen sc =
+  POSIXTime <$> Gen.integral (fromIntegral <$> Range.linear (TimeSlot.scZeroSlotTime sc) (TimeSlot.scZeroSlotTime sc + 10000))
+
+-- | Generate a 'SlotConfig' where the slot length goes from 1 second to 100
+-- seconds and the time of Slot 0 is 'scZeroSlotTime'.
+slotConfigGen :: Hedgehog.MonadGen m => m SlotConfig
+slotConfigGen = do
+  sl <- Gen.integral (Range.linear 1 10)
+  return $ def { TimeSlot.scSlotLength = sl }

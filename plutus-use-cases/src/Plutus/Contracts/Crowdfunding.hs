@@ -55,6 +55,7 @@ import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import           GHC.Generics             (Generic)
 
+import           Data.Default             (Default (def))
 import           Ledger                   (PubKeyHash, Slot, SlotRange, Validator, txId)
 import qualified Ledger
 import qualified Ledger.Ada               as Ada
@@ -148,7 +149,7 @@ typedValidator = Scripts.mkTypedValidatorParam @Crowdfunding
 validRefund :: Campaign -> PubKeyHash -> TxInfo -> Bool
 validRefund campaign contributor txinfo =
     -- Check that the transaction falls in the refund range of the campaign
-    Interval.contains (refundRange campaign) (TimeSlot.posixTimeRangeToSlotRange $ txInfoValidRange txinfo)
+    (refundRange campaign `Interval.contains` (TimeSlot.posixTimeRangeToSlotRange def $ txInfoValidRange txinfo))
     -- Check that the transaction is signed by the contributor
     && (txinfo `V.txSignedBy` contributor)
 
@@ -156,7 +157,7 @@ validRefund campaign contributor txinfo =
 validCollection :: Campaign -> TxInfo -> Bool
 validCollection campaign txinfo =
     -- Check that the transaction falls in the collection range of the campaign
-    (collectionRange campaign `Interval.contains` TimeSlot.posixTimeRangeToSlotRange (txInfoValidRange txinfo))
+    (collectionRange campaign `Interval.contains` (TimeSlot.posixTimeRangeToSlotRange def $ txInfoValidRange txinfo))
     -- Check that the transaction is signed by the campaign owner
     && (txinfo `V.txSignedBy` campaignOwner campaign)
 

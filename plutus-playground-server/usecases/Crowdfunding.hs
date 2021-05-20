@@ -23,6 +23,7 @@ module Crowdfunding where
 
 import           Control.Applicative         (Applicative (pure))
 import           Control.Monad               (void)
+import           Data.Default                (Default (def))
 import           Ledger                      (PubKeyHash, ScriptContext (..), TxInfo (..), Validator, pubKeyHash, txId)
 import qualified Ledger
 import qualified Ledger.Contexts             as V
@@ -111,14 +112,14 @@ typedValidator = Scripts.mkTypedValidatorParam @Crowdfunding
 validRefund :: Campaign -> PubKeyHash -> TxInfo -> Bool
 validRefund campaign contributor txinfo =
     -- Check that the transaction falls in the refund range of the campaign
-    Interval.contains (TimeSlot.slotRangeToPOSIXTimeRange $ refundRange campaign) (txInfoValidRange txinfo)
+    Interval.contains (TimeSlot.slotRangeToPOSIXTimeRange def $ refundRange campaign) (txInfoValidRange txinfo)
     -- Check that the transaction is signed by the contributor
     && (txinfo `V.txSignedBy` contributor)
 
 validCollection :: Campaign -> TxInfo -> Bool
 validCollection campaign txinfo =
     -- Check that the transaction falls in the collection range of the campaign
-    (TimeSlot.slotRangeToPOSIXTimeRange (collectionRange campaign) `Interval.contains` txInfoValidRange txinfo)
+    (TimeSlot.slotRangeToPOSIXTimeRange def (collectionRange campaign) `Interval.contains` txInfoValidRange txinfo)
     -- Check that the transaction is signed by the campaign owner
     && (txinfo `V.txSignedBy` campaignOwner campaign)
 

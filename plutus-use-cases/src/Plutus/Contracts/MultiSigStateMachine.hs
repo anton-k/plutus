@@ -33,6 +33,7 @@ module Plutus.Contracts.MultiSigStateMachine(
 import           Control.Lens                 (makeClassyPrisms)
 import           Control.Monad                (forever)
 import           Data.Aeson                   (FromJSON, ToJSON)
+import           Data.Default                 (Default (def))
 import           GHC.Generics                 (Generic)
 import           Ledger                       (PubKeyHash, Slot, pubKeyHash)
 import           Ledger.Constraints           (TxConstraints)
@@ -168,7 +169,7 @@ isValidProposal vl (Payment amt _ _) = amt `Value.leq` vl
 -- | Check whether a proposed 'Payment' has expired.
 proposalExpired :: TxInfo -> Payment -> Bool
 proposalExpired TxInfo{txInfoValidRange} Payment{paymentDeadline} =
-    TimeSlot.slotToPOSIXTime paymentDeadline `Interval.before` txInfoValidRange
+    TimeSlot.slotToEndPOSIXTime def paymentDeadline `Interval.before` txInfoValidRange
 
 {-# INLINABLE proposalAccepted #-}
 -- | Check whether enough signatories (represented as a list of public keys)

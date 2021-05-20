@@ -11902,6 +11902,27 @@
                                       )
                                       (datatypebind
                                         (datatype
+                                          (tyvardecl SlotConfig (type))
+
+                                          SlotConfig_match
+                                          (vardecl
+                                            SlotConfig
+                                            (fun (con integer) (fun (con integer) SlotConfig))
+                                          )
+                                        )
+                                      )
+                                      (termbind
+                                        (nonstrict)
+                                        (vardecl
+                                          fDefaultSlotConfig_cdef SlotConfig
+                                        )
+                                        [
+                                          [ SlotConfig (con integer 3) ]
+                                          (con integer 1596059091)
+                                        ]
+                                      )
+                                      (datatypebind
+                                        (datatype
                                           (tyvardecl Ordering (type))
 
                                           Ordering_match
@@ -14678,39 +14699,248 @@
                                       (termbind
                                         (strict)
                                         (vardecl
-                                          slotRangeToPOSIXTimeRange
-                                          (fun [Interval (con integer)] [Interval (con integer)])
+                                          slotToBeginPOSIXTime
+                                          (fun SlotConfig (fun (con integer) (con integer)))
                                         )
                                         (lam
-                                          sr
-                                          [Interval (con integer)]
-                                          [
-                                            {
-                                              [
-                                                { Interval_match (con integer) }
-                                                sr
-                                              ]
-                                              [Interval (con integer)]
-                                            }
-                                            (lam
-                                              from
-                                              [LowerBound (con integer)]
+                                          ds
+                                          SlotConfig
+                                          (lam
+                                            ds
+                                            (con integer)
+                                            [
+                                              {
+                                                [ SlotConfig_match ds ]
+                                                (con integer)
+                                              }
                                               (lam
-                                                to
-                                                [UpperBound (con integer)]
-                                                [
+                                                ds
+                                                (con integer)
+                                                (lam
+                                                  ds
+                                                  (con integer)
                                                   [
-                                                    { Interval (con integer) }
+                                                    [ (builtin addInteger) ds ]
+                                                    [
+                                                      [
+                                                        (builtin multiplyInteger
+                                                        )
+                                                        ds
+                                                      ]
+                                                      ds
+                                                    ]
+                                                  ]
+                                                )
+                                              )
+                                            ]
+                                          )
+                                        )
+                                      )
+                                      (termbind
+                                        (strict)
+                                        (vardecl
+                                          slotToEndPOSIXTime
+                                          (fun SlotConfig (fun (con integer) (con integer)))
+                                        )
+                                        (lam
+                                          sc
+                                          SlotConfig
+                                          (lam
+                                            slot
+                                            (con integer)
+                                            [
+                                              {
+                                                [ SlotConfig_match sc ]
+                                                (con integer)
+                                              }
+                                              (lam
+                                                ds
+                                                (con integer)
+                                                (lam
+                                                  ds
+                                                  (con integer)
+                                                  [
+                                                    [
+                                                      (builtin addInteger)
+                                                      [
+                                                        [
+                                                          (builtin addInteger)
+                                                          ds
+                                                        ]
+                                                        [
+                                                          [
+                                                            (builtin
+                                                              multiplyInteger
+                                                            )
+                                                            slot
+                                                          ]
+                                                          ds
+                                                        ]
+                                                      ]
+                                                    ]
+                                                    [
+                                                      [
+                                                        (builtin subtractInteger
+                                                        )
+                                                        ds
+                                                      ]
+                                                      (con integer 1)
+                                                    ]
+                                                  ]
+                                                )
+                                              )
+                                            ]
+                                          )
+                                        )
+                                      )
+                                      (termbind
+                                        (strict)
+                                        (vardecl
+                                          slotRangeToPOSIXTimeRange
+                                          (fun SlotConfig (fun [Interval (con integer)] [Interval (con integer)]))
+                                        )
+                                        (lam
+                                          sc
+                                          SlotConfig
+                                          (lam
+                                            sr
+                                            [Interval (con integer)]
+                                            [
+                                              [
+                                                { Interval (con integer) }
+                                                [
+                                                  {
+                                                    [
+                                                      {
+                                                        Interval_match
+                                                        (con integer)
+                                                      }
+                                                      sr
+                                                    ]
+                                                    [LowerBound (con integer)]
+                                                  }
+                                                  (lam
+                                                    ds
+                                                    [LowerBound (con integer)]
+                                                    (lam
+                                                      ds
+                                                      [UpperBound (con integer)]
+                                                      [
+                                                        {
+                                                          [
+                                                            {
+                                                              LowerBound_match
+                                                              (con integer)
+                                                            }
+                                                            ds
+                                                          ]
+                                                          [LowerBound (con integer)]
+                                                        }
+                                                        (lam
+                                                          e
+                                                          [Extended (con integer)]
+                                                          (lam
+                                                            c
+                                                            Bool
+                                                            [
+                                                              [
+                                                                {
+                                                                  LowerBound
+                                                                  (con integer)
+                                                                }
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      [
+                                                                        {
+                                                                          [
+                                                                            {
+                                                                              Extended_match
+                                                                              (con integer)
+                                                                            }
+                                                                            e
+                                                                          ]
+                                                                          (fun Unit [Extended (con integer)])
+                                                                        }
+                                                                        (lam
+                                                                          a
+                                                                          (con integer)
+                                                                          (lam
+                                                                            thunk
+                                                                            Unit
+                                                                            [
+                                                                              {
+                                                                                Finite
+                                                                                (con integer)
+                                                                              }
+                                                                              [
+                                                                                [
+                                                                                  slotToBeginPOSIXTime
+                                                                                  sc
+                                                                                ]
+                                                                                a
+                                                                              ]
+                                                                            ]
+                                                                          )
+                                                                        )
+                                                                      ]
+                                                                      (lam
+                                                                        thunk
+                                                                        Unit
+                                                                        {
+                                                                          NegInf
+                                                                          (con integer)
+                                                                        }
+                                                                      )
+                                                                    ]
+                                                                    (lam
+                                                                      thunk
+                                                                      Unit
+                                                                      {
+                                                                        PosInf
+                                                                        (con integer)
+                                                                      }
+                                                                    )
+                                                                  ]
+                                                                  Unit
+                                                                ]
+                                                              ]
+                                                              c
+                                                            ]
+                                                          )
+                                                        )
+                                                      ]
+                                                    )
+                                                  )
+                                                ]
+                                              ]
+                                              [
+                                                {
+                                                  [
+                                                    {
+                                                      Interval_match
+                                                      (con integer)
+                                                    }
+                                                    sr
+                                                  ]
+                                                  [UpperBound (con integer)]
+                                                }
+                                                (lam
+                                                  ds
+                                                  [LowerBound (con integer)]
+                                                  (lam
+                                                    ds
+                                                    [UpperBound (con integer)]
                                                     [
                                                       {
                                                         [
                                                           {
-                                                            LowerBound_match
+                                                            UpperBound_match
                                                             (con integer)
                                                           }
-                                                          from
+                                                          ds
                                                         ]
-                                                        [LowerBound (con integer)]
+                                                        [UpperBound (con integer)]
                                                       }
                                                       (lam
                                                         e
@@ -14721,7 +14951,7 @@
                                                           [
                                                             [
                                                               {
-                                                                LowerBound
+                                                                UpperBound
                                                                 (con integer)
                                                               }
                                                               [
@@ -14751,15 +14981,10 @@
                                                                             }
                                                                             [
                                                                               [
-                                                                                (builtin
-                                                                                  addInteger
-                                                                                )
-                                                                                a
+                                                                                slotToEndPOSIXTime
+                                                                                sc
                                                                               ]
-                                                                              (con
-                                                                                integer
-                                                                                  1596059091
-                                                                              )
+                                                                              a
                                                                             ]
                                                                           ]
                                                                         )
@@ -14791,101 +15016,11 @@
                                                         )
                                                       )
                                                     ]
-                                                  ]
-                                                  [
-                                                    {
-                                                      [
-                                                        {
-                                                          UpperBound_match
-                                                          (con integer)
-                                                        }
-                                                        to
-                                                      ]
-                                                      [UpperBound (con integer)]
-                                                    }
-                                                    (lam
-                                                      e
-                                                      [Extended (con integer)]
-                                                      (lam
-                                                        c
-                                                        Bool
-                                                        [
-                                                          [
-                                                            {
-                                                              UpperBound
-                                                              (con integer)
-                                                            }
-                                                            [
-                                                              [
-                                                                [
-                                                                  [
-                                                                    {
-                                                                      [
-                                                                        {
-                                                                          Extended_match
-                                                                          (con integer)
-                                                                        }
-                                                                        e
-                                                                      ]
-                                                                      (fun Unit [Extended (con integer)])
-                                                                    }
-                                                                    (lam
-                                                                      a
-                                                                      (con integer)
-                                                                      (lam
-                                                                        thunk
-                                                                        Unit
-                                                                        [
-                                                                          {
-                                                                            Finite
-                                                                            (con integer)
-                                                                          }
-                                                                          [
-                                                                            [
-                                                                              (builtin
-                                                                                addInteger
-                                                                              )
-                                                                              a
-                                                                            ]
-                                                                            (con
-                                                                              integer
-                                                                                1596059091
-                                                                            )
-                                                                          ]
-                                                                        ]
-                                                                      )
-                                                                    )
-                                                                  ]
-                                                                  (lam
-                                                                    thunk
-                                                                    Unit
-                                                                    {
-                                                                      NegInf
-                                                                      (con integer)
-                                                                    }
-                                                                  )
-                                                                ]
-                                                                (lam
-                                                                  thunk
-                                                                  Unit
-                                                                  {
-                                                                    PosInf
-                                                                    (con integer)
-                                                                  }
-                                                                )
-                                                              ]
-                                                              Unit
-                                                            ]
-                                                          ]
-                                                          c
-                                                        ]
-                                                      )
-                                                    )
-                                                  ]
-                                                ]
-                                              )
-                                            )
-                                          ]
+                                                  )
+                                                )
+                                              ]
+                                            ]
+                                          )
                                         )
                                       )
                                       (termbind
@@ -17011,7 +17146,10 @@
                                                                       fOrdPOSIXTime
                                                                     ]
                                                                     [
-                                                                      slotRangeToPOSIXTimeRange
+                                                                      [
+                                                                        slotRangeToPOSIXTimeRange
+                                                                        fDefaultSlotConfig_cdef
+                                                                      ]
                                                                       interval
                                                                     ]
                                                                   ]
