@@ -23,7 +23,9 @@ module Plutus.PAB.App(
     EventfulBackend(..),
     -- * App actions
     migrate,
-    dbConnect
+    dbConnect,
+    beamMigrate,
+    beamDbConnect
     ) where
 
 import           Cardano.BM.Trace                               (Trace)
@@ -35,6 +37,7 @@ import qualified Cardano.Protocol.Socket.Client                 as Client
 import qualified Cardano.Wallet.Client                          as WalletClient
 import qualified Cardano.Wallet.Types                           as Wallet
 import qualified Control.Concurrent.STM                         as STM
+import           Control.Monad                                  (void)
 import           Control.Monad.Freer
 import           Control.Monad.Freer.Error                      (handleError, throwError)
 import           Control.Monad.Freer.Extras.Log                 (mapLog)
@@ -42,8 +45,15 @@ import           Control.Monad.Freer.Reader                     (Reader)
 import           Control.Monad.IO.Class                         (MonadIO (..))
 import qualified Control.Monad.Logger                           as MonadLogger
 import           Data.Coerce                                    (coerce)
+import           Data.Text                                      (unpack)
+import           Database.Beam.Migrate
+import           Database.Beam.Migrate.Simple
+import qualified Database.Beam.Sqlite                           as Sqlite
+import qualified Database.Beam.Sqlite.Migrate                   as Sqlite
 import           Database.Persist.Sqlite                        (createSqlitePoolFromInfo, mkSqliteConnectionInfo,
                                                                  runSqlPool)
+import           Database.SQLite.Simple                         (open)
+import qualified Database.SQLite.Simple                         as Sqlite
 import qualified Eventful.Store.Memory                          as M
 import           Eventful.Store.Sqlite                          (defaultSqlEventStoreConfig, initializeSqliteEventStore)
 import           Network.HTTP.Client                            (managerModifyRequest, newManager,
@@ -58,6 +68,7 @@ import           Plutus.PAB.Db.Eventful.ContractStore           (handleContractS
 import           Plutus.PAB.Db.Memory.ContractStore             (InMemInstances, initialInMemInstances)
 import qualified Plutus.PAB.Db.Memory.ContractStore             as InMem
 import           Plutus.PAB.Effects.Contract.ContractExe        (ContractExe, handleContractEffectContractExe)
+import           Plutus.PAB.Effects.DbStore                     (Db, initialSetupStep)
 import           Plutus.PAB.Effects.EventLog                    (Connection (..), EventLogBackend (..), handleEventLog)
 import qualified Plutus.PAB.Effects.EventLog                    as EventLog
 import           Plutus.PAB.Events                              (PABEvent)
@@ -189,6 +200,39 @@ mkEnv eventfulBackend appTrace appConfig@Config { dbConfig
         newManager $
         tlsManagerSettings {managerModifyRequest = pure . setRequestIgnoreStatus}
 
+
+beamMigrate :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO ()
+beamMigrate trace config = do
+    connection <- beamDbConnect trace config
+    flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
+      MonadLogger.logDebugN "Running beam migration"
+      liftIO
+        $ void
+        $ migrateDB connection
+
+
+allowDestructive :: (MonadFail m) => BringUpToDateHooks m
+allowDestructive = defaultUpToDateHooks
+  { runIrreversibleHook = pure True }
+
+
+migrateDB
+  :: Sqlite.Connection
+  -> IO (Maybe (CheckedDatabaseSettings Sqlite.Sqlite Db))
+migrateDB conn = Sqlite.runBeamSqliteDebug putStrLn conn $
+  bringUpToDateWithHooks
+    allowDestructive
+    Sqlite.migrationBackend
+    initialSetupStep
+
+
+beamDbConnect :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO Sqlite.Connection
+beamDbConnect trace DbConfig {dbConfigFile} =
+  flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
+    MonadLogger.logDebugN "Connecting to DB"
+    liftIO $ open (unpack dbConfigFile)
+
+
 -- | Initialize/update the database to hold events.
 migrate :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO ()
 migrate trace config = do
@@ -197,6 +241,7 @@ migrate trace config = do
         liftIO
             $ flip runSqlPool connectionPool
             $ initializeSqliteEventStore sqlConfig connectionPool
+
 
 ------------------------------------------------------------
 -- | Create a database 'Connection' containing the connection pool
