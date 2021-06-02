@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE GADTs             #-}
 {-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -45,7 +45,7 @@ mkRow
   :: ContractActivationArgs (ContractDef ContractExe)
   -> ContractInstanceId
   -> ContractInstance
-mkRow (ContractActivationArgs{..}) instanceId
+mkRow (ContractActivationArgs{caID, caWallet}) instanceId
   = ContractInstance
       (uuidStr instanceId)
       (Text.pack $ contractPath caID)

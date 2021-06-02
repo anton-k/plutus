@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE GADTs             #-}
 {-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -26,10 +26,10 @@ import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe (..))
 import           Plutus.PAB.Effects.DbStore              hiding (contractPath)
 
 mkRow :: ContractExe -> Contract
-mkRow (ContractExe {..}) = Contract (Text.pack contractPath)
+mkRow (ContractExe {contractPath}) = Contract (Text.pack contractPath)
 
 fromRow :: Contract -> ContractExe
-fromRow (Contract {..})  = ContractExe (Text.unpack _contractPath)
+fromRow (Contract {_contractPath})  = ContractExe (Text.unpack _contractPath)
 
 handleContractDefinitionStore ::
   forall effs.

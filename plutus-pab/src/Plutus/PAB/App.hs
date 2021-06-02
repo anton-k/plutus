@@ -229,7 +229,7 @@ migrateDB conn = Sqlite.runBeamSqliteDebug putStrLn conn $
 beamDbConnect :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO Sqlite.Connection
 beamDbConnect trace DbConfig {dbConfigFile} =
   flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
-    MonadLogger.logDebugN "Connecting to DB"
+    MonadLogger.logDebugN $ "Connecting to DB: " <> dbConfigFile
     liftIO $ open (unpack dbConfigFile)
 
 
