@@ -81,16 +81,9 @@ data DbConfig =
         -- ^ The path to the sqlite database file. May be absolute or relative.
         , dbConfigPoolSize :: Int
         -- ^ Max number of concurrent sqlite database connections.
-        , dbConfigDbKind   :: DbKind
-        -- ^ The particular kind of database we're using; see 'DbKind'.
         }
     deriving (Show, Eq, Generic)
     deriving anyclass (ToJSON, FromJSON)
-
-data DbKind
-  = BeamDb
-  | EventfulDb
-  deriving (Generic, Show, Eq, FromJSON, ToJSON)
 
 data Config =
     Config

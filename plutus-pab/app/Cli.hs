@@ -95,7 +95,7 @@ import qualified Plutus.PAB.Db.Beam                      as Beam
 import qualified Plutus.PAB.Db.Eventful                  as Eventful
 import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe)
 import qualified Plutus.PAB.Monitoring.Monitoring        as LM
-import           Plutus.PAB.Types                        (Config (..), DbConfig (..), DbKind (..), chainIndexConfig,
+import           Plutus.PAB.Types                        (Config (..), DbConfig (..), chainIndexConfig,
                                                           metadataServerConfig, nodeServerConfig, walletServerConfig)
 import qualified Plutus.PAB.Webserver.Server             as PABServer
 import           Plutus.PAB.Webserver.Types              (ContractActivationArgs (..))
@@ -108,7 +108,7 @@ runNoConfigCommand trace = \case
 
     -- Run database migration
     Migrate{dbPath} ->
-        let conf = DbConfig{dbConfigPoolSize=10, dbConfigFile=Text.pack dbPath, dbConfigDbKind=BeamDb} in
+        let conf = DbConfig{dbConfigPoolSize=10, dbConfigFile=Text.pack dbPath} in
         App.beamMigrate (LM.convertLog LM.PABMsg trace) conf
         -- TODO: Restore or delete
         -- App.migrate (LM.convertLog LM.PABMsg trace) conf
@@ -194,19 +194,19 @@ runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config {nodeServerConf
 
 -- Install a contract
 runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) =
-  case dbConfigDbKind dbConfig of
-    BeamDb ->
+  -- case dbConfigDbKind dbConfig of
+  --   BeamDb ->
       do
         connection <- App.beamDbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
         fmap (either (error . show) id)
             $ Beam.runBeamStoreAction connection
             $ Contract.addDefinition @ContractExe contractExe
-    EventfulDb ->
-      do
-        connection <- Sqlite <$> App.dbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
-        fmap (either (error . show) id)
-            $ Eventful.runEventfulStoreAction connection (LM.convertLog (LM.PABMsg . LM.SLoggerBridge) ccaTrace)
-            $ Contract.addDefinition @ContractExe contractExe
+    -- EventfulDb ->
+    --   do
+    --     connection <- Sqlite <$> App.dbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
+    --     fmap (either (error . show) id)
+    --         $ Eventful.runEventfulStoreAction connection (LM.convertLog (LM.PABMsg . LM.SLoggerBridge) ccaTrace)
+    --         $ Contract.addDefinition @ContractExe contractExe
 
 -- Get the state of a contract
 runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (ContractState contractInstanceId) = do
