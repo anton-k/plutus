@@ -21,6 +21,7 @@ module Plutus.PAB.Db.Beam.ContractStore
 import           Control.Lens
 import           Control.Monad                           (join)
 import           Control.Monad.Freer                     (Eff, Member, type (~>))
+import           Control.Monad.Freer.Error               (Error, throwError)
 import           Data.Aeson                              (decode, encode)
 import           Data.ByteString.Builder                 (toLazyByteString)
 import qualified Data.ByteString.Char8                   as B
@@ -37,6 +38,7 @@ import           Database.Beam                           hiding (updateRow)
 import           Plutus.PAB.Effects.Contract             (ContractStore (..), PABContract (..))
 import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe (..))
 import           Plutus.PAB.Effects.DbStore              hiding (ContractInstanceId, contractPath)
+import           Plutus.PAB.Types                        (PABError (..))
 import           Plutus.PAB.Webserver.Types              (ContractActivationArgs (..))
 import           Wallet.Emulator.Wallet                  (Wallet (..))
 import           Wallet.Types                            (ContractInstanceId (..))
@@ -73,6 +75,7 @@ uuidStr = toText . unContractInstanceId
 extractState
   :: Maybe ContractInstance
   -> State ContractExe
+-- TODO: use 'throwError' instead
 extractState Nothing  = error "Couldn't find contract instance"
 extractState (Just c) =
   fromMaybe (error "No state found for this contract instance")
@@ -83,7 +86,10 @@ extractState (Just c) =
 handleContractStore ::
   forall effs.
   ( Member DbStoreEffect effs
+  , Member (Error PABError) effs
   )
+  -- TODO: State t ~ ContractResponse Value Value Value ContractPABRequest
+  --       instead of 'ContractExe'
   => ContractStore ContractExe
   ~> Eff effs
 handleContractStore = \case

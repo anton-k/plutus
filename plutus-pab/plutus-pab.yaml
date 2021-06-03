@@ -1,6 +1,7 @@
 dbConfig:
     dbConfigFile: pab-core.db
     dbConfigPoolSize: 20
+    dbConfigDbKind: BeamDb
 
 pabWebserverConfig:
   baseUrl: http://localhost:9080

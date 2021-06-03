@@ -19,16 +19,16 @@ import           Options.Applicative                     (CommandFields, Mod, Pa
                                                           idm, info, long, metavar, option, prefs, progDesc, short,
                                                           showHelpOnEmpty, showHelpOnError, str, strOption, subparser,
                                                           value)
-import           Plutus.PAB.App                          (EventfulBackend (..))
+import           Plutus.PAB.App                          (DbBackend (..))
 import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe (..))
 import           Wallet.Types                            (ContractInstanceId (..))
 
-data AppOpts = AppOpts { minLogLevel     :: Maybe Severity
-                       , logConfigPath   :: Maybe FilePath
-                       , configPath      :: Maybe FilePath
-                       , runEkgServer    :: Bool
-                       , eventfulBackend :: EventfulBackend
-                       , cmd             :: Command
+data AppOpts = AppOpts { minLogLevel   :: Maybe Severity
+                       , logConfigPath :: Maybe FilePath
+                       , configPath    :: Maybe FilePath
+                       , runEkgServer  :: Bool
+                       , dbBackend     :: DbBackend
+                       , cmd           :: Command
                        }
 
 parseOptions :: IO AppOpts
@@ -50,12 +50,15 @@ ekgFlag =
         True
         (short 'e' <> long "ekg" <> help "Enable the EKG server")
 
-inMemoryFlag :: Parser EventfulBackend
-inMemoryFlag =
-    flag
-        SqliteBackend
-        InMemoryBackend
-        (short 'm' <> long "memory" <> help "Use the memory-backed eventful backend. If false, the sqlite backend is used.")
+dbBackendParser :: Parser DbBackend
+dbBackendParser =
+  option
+    auto
+    (long "db-backend" <>
+     metavar "DB_BACKEND" <>
+     help "Database backend: One of: EventfulSqliteBackend, EventfulInMemoryBackend, BeamSqliteBackend" <>
+     value BeamSqliteBackend
+    )
 
 commandLineParser :: Parser AppOpts
 commandLineParser =
@@ -63,7 +66,7 @@ commandLineParser =
                <*> logConfigFileParser
                <*> configFileParser
                <*> ekgFlag
-               <*> inMemoryFlag
+               <*> dbBackendParser
                <*> commandParser
 
 configFileParser :: Parser (Maybe FilePath)

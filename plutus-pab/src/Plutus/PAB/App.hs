@@ -20,7 +20,7 @@ module Plutus.PAB.App(
     App,
     runApp,
     AppEnv(..),
-    EventfulBackend(..),
+    DbBackend(..),
     -- * App actions
     migrate,
     dbConnect,
@@ -41,7 +41,6 @@ import           Control.Monad                                  (void)
 import           Control.Monad.Freer
 import           Control.Monad.Freer.Error                      (handleError, throwError)
 import           Control.Monad.Freer.Extras.Log                 (mapLog)
-import           Control.Monad.Freer.Reader                     (Reader)
 import           Control.Monad.IO.Class                         (MonadIO (..))
 import qualified Control.Monad.Logger                           as MonadLogger
 import           Data.Coerce                                    (coerce)
@@ -63,12 +62,15 @@ import           Plutus.PAB.Core                                (EffectHandlers 
 import qualified Plutus.PAB.Core                                as Core
 import qualified Plutus.PAB.Core.ContractInstance.BlockchainEnv as BlockchainEnv
 import           Plutus.PAB.Core.ContractInstance.STM           as Instances
-import           Plutus.PAB.Db.Eventful.ContractDefinitionStore (handleContractDefinitionStore)
-import           Plutus.PAB.Db.Eventful.ContractStore           (handleContractStore)
+import qualified Plutus.PAB.Db.Eventful.ContractDefinitionStore as EventfulEff
+import qualified Plutus.PAB.Db.Eventful.ContractStore           as EventfulEff
 import           Plutus.PAB.Db.Memory.ContractStore             (InMemInstances, initialInMemInstances)
+-- import qualified Plutus.PAB.Db.Memory.ContractDefinitionStore   as InMem
+import qualified Plutus.PAB.Db.Beam.ContractDefinitionStore     as BeamEff
+import qualified Plutus.PAB.Db.Beam.ContractStore               as BeamEff
 import qualified Plutus.PAB.Db.Memory.ContractStore             as InMem
 import           Plutus.PAB.Effects.Contract.ContractExe        (ContractExe, handleContractEffectContractExe)
-import           Plutus.PAB.Effects.DbStore                     (Db, initialSetupStep)
+import           Plutus.PAB.Effects.DbStore                     (Db, handleDbStore, initialSetupStep)
 import           Plutus.PAB.Effects.EventLog                    (Connection (..), EventLogBackend (..), handleEventLog)
 import qualified Plutus.PAB.Effects.EventLog                    as EventLog
 import           Plutus.PAB.Events                              (PABEvent)
@@ -95,11 +97,11 @@ data AppEnv =
         , appInMemContractStore :: InMemInstances ContractExe
         }
 
-appEffectHandlers :: EventfulBackend -> Config -> Trace IO (PABLogMsg ContractExe) -> EffectHandlers ContractExe AppEnv
-appEffectHandlers eventfulBackend config trace =
+appEffectHandlers :: DbBackend -> Config -> Trace IO (PABLogMsg ContractExe) -> EffectHandlers ContractExe AppEnv
+appEffectHandlers dbBackend config trace =
     EffectHandlers
         { initialiseEnvironment = do
-            env <- liftIO $ mkEnv eventfulBackend trace config
+            env <- liftIO $ mkEnv dbBackend trace config
             let Config{nodeServerConfig=MockServerConfig{mscSocketPath, mscSlotConfig}} = config
             instancesState <- liftIO $ STM.atomically $ Instances.emptyInstancesState
             blockchainEnv <- liftIO $ BlockchainEnv.startNodeClient mscSocketPath mscSlotConfig
@@ -109,28 +111,50 @@ appEffectHandlers eventfulBackend config trace =
             interpret (handleLogMsgTrace trace)
             . reinterpret (mapLog SMultiAgent)
 
-        , handleContractStoreEffect =
-            case eventfulBackend of
-                InMemoryBackend ->
-                    interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
-                    . interpret (Core.handleMappedReader @AppEnv appInMemContractStore)
-                    . reinterpret2 InMem.handleContractStore
-                SqliteBackend ->
-                    interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
-                    . interpret (Core.handleMappedReader @AppEnv dbConnection)
-                    . interpret (handleEventLog @_ @(PABEvent ContractExe) (convertLog SLoggerBridge trace))
-                    . reinterpretN @'[_, Reader (EventLogBackend (PABEvent ContractExe)), Reader AppEnv] handleContractStore
-
         , handleContractEffect =
             interpret (handleLogMsgTrace trace)
             . reinterpret (mapLog @_ @(PABLogMsg ContractExe) SContractExeLogMsg)
             . reinterpret (handleContractEffectContractExe @IO)
 
+        , handleContractStoreEffect =
+            case dbBackend of
+                BeamSqliteBackend ->
+                  interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                  . interpret (Core.handleMappedReader @AppEnv dbConnection)
+                  . interpret (handleDbStore undefined)
+                  . reinterpret3 BeamEff.handleContractStore
+
+                EventfulInMemoryBackend ->
+                    interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                    . interpret (Core.handleMappedReader @AppEnv appInMemContractStore)
+                    . reinterpret2 InMem.handleContractStore
+
+                EventfulSqliteBackend ->
+                    interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                    . interpret (Core.handleMappedReader @AppEnv dbConnection)
+                    . interpret (handleEventLog @_ @(PABEvent ContractExe) (convertLog SLoggerBridge trace))
+                    . reinterpret3 EventfulEff.handleContractStore
+
         , handleContractDefinitionStoreEffect =
-            interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
-            . interpret (Core.handleMappedReader @AppEnv dbConnection)
-            . interpret (handleEventLog @_ @(PABEvent ContractExe) (convertLog SLoggerBridge trace))
-            . reinterpretN @'[_, Reader (EventLogBackend (PABEvent ContractExe)), Reader AppEnv] handleContractDefinitionStore
+            case dbBackend of
+                BeamSqliteBackend ->
+                  interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                  . interpret (Core.handleMappedReader @AppEnv dbConnection)
+                  . interpret (handleDbStore undefined)
+                  . reinterpret3 BeamEff.handleContractDefinitionStore
+
+                EventfulInMemoryBackend ->
+                  -- TODO: Implement
+                  error "Not supported!!"
+                --     interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                --     . interpret (Core.handleMappedReader @AppEnv appInMemContractStore)
+                --     . reinterpret2 InMem.handleContractDefinitionStore
+
+                EventfulSqliteBackend ->
+                    interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
+                    . interpret (Core.handleMappedReader @AppEnv dbConnection)
+                    . interpret (handleEventLog @_ @(PABEvent ContractExe) (convertLog SLoggerBridge trace))
+                    . reinterpret3 EventfulEff.handleContractDefinitionStore
 
         , handleServicesEffects = \wallet ->
 
@@ -164,20 +188,23 @@ appEffectHandlers eventfulBackend config trace =
 
 runApp ::
     forall a.
-    EventfulBackend
+    DbBackend
     -> Trace IO (PABLogMsg ContractExe) -- ^ Top-level tracer
     -> Config -- ^ Client configuration
     -> App a -- ^ Action
     -> IO (Either PABError a)
-runApp eventfulBackend trace config@Config{endpointTimeout} = Core.runPAB (Timeout endpointTimeout) (appEffectHandlers eventfulBackend config trace)
+runApp dbBackend trace config@Config{endpointTimeout} = Core.runPAB (Timeout endpointTimeout) (appEffectHandlers dbBackend config trace)
 
 type App a = PABAction ContractExe AppEnv a
 
-data EventfulBackend = SqliteBackend | InMemoryBackend
-    deriving (Eq, Ord, Show)
+data DbBackend
+  = EventfulSqliteBackend
+  | EventfulInMemoryBackend
+  | BeamSqliteBackend
+  deriving (Eq, Show, Read)
 
-mkEnv :: EventfulBackend -> Trace IO (PABLogMsg ContractExe) -> Config -> IO AppEnv
-mkEnv eventfulBackend appTrace appConfig@Config { dbConfig
+mkEnv :: DbBackend -> Trace IO (PABLogMsg ContractExe) -> Config -> IO AppEnv
+mkEnv dbBackend appTrace appConfig@Config { dbConfig
              , nodeServerConfig =  MockServerConfig{mscBaseUrl, mscSocketPath, mscSlotConfig}
              , walletServerConfig
              , chainIndexConfig
@@ -185,9 +212,12 @@ mkEnv eventfulBackend appTrace appConfig@Config { dbConfig
     walletClientEnv <- clientEnv (Wallet.baseUrl walletServerConfig)
     nodeClientEnv <- clientEnv mscBaseUrl
     chainIndexEnv <- clientEnv (ChainIndex.ciBaseUrl chainIndexConfig)
-    dbConnection <- case eventfulBackend of
-        SqliteBackend   -> Sqlite <$> dbConnect appTrace dbConfig
-        InMemoryBackend -> InMemory <$> M.eventMapTVar
+    dbConnection <- case dbBackend of
+        EventfulSqliteBackend   -> Sqlite <$> dbConnect appTrace dbConfig
+        EventfulInMemoryBackend -> InMemory <$> M.eventMapTVar
+        -- TODO: Implement
+        BeamSqliteBackend       -> error "!!!"
+
     txSendHandle <- liftIO $ Client.runTxSender mscSocketPath
     -- This is for access to the slot number in the interpreter
     chainSyncHandle <- liftIO $ Client.runChainSync' mscSocketPath mscSlotConfig
@@ -216,6 +246,7 @@ allowDestructive = defaultUpToDateHooks
   { runIrreversibleHook = pure True }
 
 
+-- TODO: Document
 migrateDB
   :: Sqlite.Connection
   -> IO (Maybe (CheckedDatabaseSettings Sqlite.Sqlite Db))
@@ -226,6 +257,7 @@ migrateDB conn = Sqlite.runBeamSqliteDebug putStrLn conn $
     initialSetupStep
 
 
+-- TODO: Document
 beamDbConnect :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO Sqlite.Connection
 beamDbConnect trace DbConfig {dbConfigFile} =
   flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
@@ -250,6 +282,6 @@ dbConnect :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO EventLog.Connect
 dbConnect trace DbConfig {dbConfigFile, dbConfigPoolSize} =
     flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
         let connectionInfo = mkSqliteConnectionInfo dbConfigFile
-        MonadLogger.logDebugN "Connecting to DB"
+        MonadLogger.logDebugN $ "Connecting to DB: " <> dbConfigFile
         connectionPool <- createSqlitePoolFromInfo connectionInfo dbConfigPoolSize
         pure $ EventLog.Connection (defaultSqlEventStoreConfig, connectionPool)

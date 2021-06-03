@@ -86,19 +86,19 @@ import           Plutus.PAB.Effects.EventLog             (EventLogBackend (..))
 
 import           Cardano.Node.Types                      (MockServerConfig (..))
 import qualified PSGenerator
-import           Plutus.Contract.Resumable                (responses)
-import           Plutus.Contract.State                    (State (..))
-import qualified Plutus.Contract.State                    as State
-import qualified Plutus.PAB.App                           as App
-import qualified Plutus.PAB.Core                          as Core
-import qualified Plutus.PAB.Db.Beam                       as Beam
-import qualified Plutus.PAB.Db.Eventful                   as Eventful
-import           Plutus.PAB.Effects.Contract.ContractExe  (ContractExe)
-import qualified Plutus.PAB.Monitoring.Monitoring         as LM
-import           Plutus.PAB.Types                         (Config (..), DbConfig (..), chainIndexConfig,
-                                                           metadataServerConfig, nodeServerConfig, walletServerConfig)
-import qualified Plutus.PAB.Webserver.Server              as PABServer
-import           Plutus.PAB.Webserver.Types               (ContractActivationArgs (..))
+import           Plutus.Contract.Resumable               (responses)
+import           Plutus.Contract.State                   (State (..))
+import qualified Plutus.Contract.State                   as State
+import qualified Plutus.PAB.App                          as App
+import qualified Plutus.PAB.Core                         as Core
+import qualified Plutus.PAB.Db.Beam                      as Beam
+import qualified Plutus.PAB.Db.Eventful                  as Eventful
+import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe)
+import qualified Plutus.PAB.Monitoring.Monitoring        as LM
+import           Plutus.PAB.Types                        (Config (..), DbConfig (..), DbKind (..), chainIndexConfig,
+                                                          metadataServerConfig, nodeServerConfig, walletServerConfig)
+import qualified Plutus.PAB.Webserver.Server             as PABServer
+import           Plutus.PAB.Webserver.Types              (ContractActivationArgs (..))
 
 runNoConfigCommand ::
     Trace IO (LM.AppMsg ContractExe)  -- ^ PAB Tracer logging instance
@@ -108,7 +108,7 @@ runNoConfigCommand trace = \case
 
     -- Run database migration
     Migrate{dbPath} ->
-        let conf = DbConfig{dbConfigPoolSize=10, dbConfigFile=Text.pack dbPath} in
+        let conf = DbConfig{dbConfigPoolSize=10, dbConfigFile=Text.pack dbPath, dbConfigDbKind=BeamDb} in
         App.beamMigrate (LM.convertLog LM.PABMsg trace) conf
         -- TODO: Restore or delete
         -- App.migrate (LM.convertLog LM.PABMsg trace) conf
@@ -121,11 +121,11 @@ runNoConfigCommand trace = \case
 
 data ConfigCommandArgs =
     ConfigCommandArgs
-        { ccaTrace           :: Trace IO (LM.AppMsg ContractExe)  -- ^ PAB Tracer logging instance
-        , ccaLoggingConfig   :: Configuration -- ^ Monitoring configuration
-        , ccaPABConfig       :: Config        -- ^ PAB Configuration
-        , ccaAvailability    :: Availability  -- ^ Token for signaling service availability
-        , ccaEventfulBackend :: App.EventfulBackend -- ^ Whether to use the sqlite or the in-memory backend
+        { ccaTrace         :: Trace IO (LM.AppMsg ContractExe)  -- ^ PAB Tracer logging instance
+        , ccaLoggingConfig :: Configuration -- ^ Monitoring configuration
+        , ccaPABConfig     :: Config        -- ^ PAB Configuration
+        , ccaAvailability  :: Availability  -- ^ Token for signaling service availability
+        , ccaDbBackend     :: App.DbBackend -- ^ Which kind of backend to use
         }
 
 -- | Interpret a 'Command' in 'Eff' using the provided tracer and configurations
@@ -160,9 +160,9 @@ runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig = Config {metadataServ
         ccaAvailability
 
 -- Run PAB webserver
-runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=config@Config{pabWebserverConfig}, ccaAvailability, ccaEventfulBackend} PABWebserver =
+runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=config@Config{pabWebserverConfig}, ccaAvailability, ccaDbBackend} PABWebserver =
         fmap (either (error . show) id)
-        $ App.runApp ccaEventfulBackend (toPABMsg ccaTrace) config
+        $ App.runApp ccaDbBackend (toPABMsg ccaTrace) config
         $ do
             App.AppEnv{App.walletClientEnv} <- Core.askUserEnv @ContractExe @App.AppEnv
             (mvar, _) <- PABServer.startServer pabWebserverConfig (Left walletClientEnv) ccaAvailability
@@ -193,17 +193,20 @@ runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config {nodeServerConf
         ccaAvailability
 
 -- Install a contract
-runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) = do
-    connection <- App.beamDbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
-    fmap (either (error . show) id)
-        $ Beam.runBeamStoreAction connection
-        $ Contract.addDefinition @ContractExe contractExe
--- TODO: Restore or delete!
--- runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) = do
---     connection <- Sqlite <$> App.dbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
---     fmap (either (error . show) id)
---         $ Eventful.runEventfulStoreAction connection (LM.convertLog (LM.PABMsg . LM.SLoggerBridge) ccaTrace)
---         $ Contract.addDefinition @ContractExe contractExe
+runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) =
+  case dbConfigDbKind dbConfig of
+    BeamDb ->
+      do
+        connection <- App.beamDbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
+        fmap (either (error . show) id)
+            $ Beam.runBeamStoreAction connection
+            $ Contract.addDefinition @ContractExe contractExe
+    EventfulDb ->
+      do
+        connection <- Sqlite <$> App.dbConnect (LM.convertLog LM.PABMsg ccaTrace) dbConfig
+        fmap (either (error . show) id)
+            $ Eventful.runEventfulStoreAction connection (LM.convertLog (LM.PABMsg . LM.SLoggerBridge) ccaTrace)
+            $ Contract.addDefinition @ContractExe contractExe
 
 -- Get the state of a contract
 runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (ContractState contractInstanceId) = do
