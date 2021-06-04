@@ -125,7 +125,7 @@ data ConfigCommandArgs =
         , ccaLoggingConfig :: Configuration -- ^ Monitoring configuration
         , ccaPABConfig     :: Config        -- ^ PAB Configuration
         , ccaAvailability  :: Availability  -- ^ Token for signaling service availability
-        , ccaDbBackend     :: App.DbBackend -- ^ Which kind of backend to use
+        , ccaDbBackend     :: App.DbBackend -- ^ Which kind of backend to use for the provided db kind.
         }
 
 -- | Interpret a 'Command' in 'Eff' using the provided tracer and configurations
@@ -193,7 +193,7 @@ runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config {nodeServerConf
         ccaAvailability
 
 -- Install a contract
-runConfigCommand ConfigCommandArgs{ccaTrace, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) =
+runConfigCommand ConfigCommandArgs{ccaTrace, ccaDbBackend, ccaPABConfig=Config{dbConfig}} (InstallContract contractExe) =
   -- case dbConfigDbKind dbConfig of
   --   BeamDb ->
       do

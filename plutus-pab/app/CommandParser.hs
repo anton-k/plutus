@@ -10,16 +10,13 @@
 
 module CommandParser (parseOptions, AppOpts(..)) where
 
-import           Command
-
 import           Cardano.BM.Data.Severity                (Severity (..))
-
+import           Command
 import           Options.Applicative                     (CommandFields, Mod, Parser, argument, auto, command,
                                                           customExecParser, disambiguate, flag, fullDesc, help, helper,
                                                           idm, info, long, metavar, option, prefs, progDesc, short,
                                                           showHelpOnEmpty, showHelpOnError, str, strOption, subparser,
                                                           value)
-import           Plutus.PAB.App                          (DbBackend (..))
 import           Plutus.PAB.Effects.Contract.ContractExe (ContractExe (..))
 import           Wallet.Types                            (ContractInstanceId (..))
 
@@ -27,9 +24,14 @@ data AppOpts = AppOpts { minLogLevel   :: Maybe Severity
                        , logConfigPath :: Maybe FilePath
                        , configPath    :: Maybe FilePath
                        , runEkgServer  :: Bool
-                       , dbBackend     :: DbBackend
+                       -- , dbKind        :: DbKind
                        , cmd           :: Command
                        }
+
+-- data DbKind
+--   = OnDisk
+--   | InMemory
+--   deriving (Eq, Show, Read)
 
 parseOptions :: IO AppOpts
 parseOptions = customExecParser
@@ -50,24 +52,23 @@ ekgFlag =
         True
         (short 'e' <> long "ekg" <> help "Enable the EKG server")
 
-dbBackendParser :: Parser DbBackend
-dbBackendParser =
-  option
-    auto
-    (long "db-backend" <>
-     metavar "DB_BACKEND" <>
-     help "Database backend: One of: EventfulSqliteBackend, EventfulInMemoryBackend, BeamSqliteBackend" <>
-     value BeamSqliteBackend
-    )
+-- dbKindParser :: Parser DbKind
+-- dbKindParser =
+--   option
+--     auto
+--     (long "db" <>
+--      metavar "DB" <>
+--      help "Database kind. One of: OnDisk, InMemory" <>
+--      value Beam)
 
 commandLineParser :: Parser AppOpts
 commandLineParser =
         AppOpts <$> logLevelFlag
-               <*> logConfigFileParser
-               <*> configFileParser
-               <*> ekgFlag
-               <*> dbBackendParser
-               <*> commandParser
+                <*> logConfigFileParser
+                <*> configFileParser
+                <*> ekgFlag
+                -- <*> dbKindParser
+                <*> commandParser
 
 configFileParser :: Parser (Maybe FilePath)
 configFileParser =
@@ -144,6 +145,7 @@ migrationParser =
                 str
                 (metavar "DATABASE" <>
                  help "The sqlite database file.")
+        -- TODO: This will need to be 'WithConfig'.
         pure $ WithoutConfig $ Migrate{dbPath}
 
 mockNodeParser :: Mod CommandFields Command
