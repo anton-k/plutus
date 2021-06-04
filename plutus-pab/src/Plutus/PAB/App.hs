@@ -55,10 +55,10 @@ import           Plutus.PAB.Core                                (EffectHandlers 
 import qualified Plutus.PAB.Core                                as Core
 import qualified Plutus.PAB.Core.ContractInstance.BlockchainEnv as BlockchainEnv
 import           Plutus.PAB.Core.ContractInstance.STM           as Instances
-import           Plutus.PAB.Db.Memory.ContractStore             (InMemInstances, initialInMemInstances)
--- import qualified Plutus.PAB.Db.Memory.ContractDefinitionStore   as InMem
 import qualified Plutus.PAB.Db.Beam.ContractDefinitionStore     as BeamEff
 import qualified Plutus.PAB.Db.Beam.ContractStore               as BeamEff
+import           Plutus.PAB.Db.Memory.ContractStore             (InMemInstances, initialInMemInstances)
+-- TODO: Use this or delete it
 import qualified Plutus.PAB.Db.Memory.ContractStore             as InMem
 import           Plutus.PAB.Effects.Contract.ContractExe        (ContractExe, handleContractEffectContractExe)
 import           Plutus.PAB.Effects.DbStore                     (Db, handleDbStore, initialSetupStep)
