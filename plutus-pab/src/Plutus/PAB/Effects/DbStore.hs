@@ -13,11 +13,12 @@
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
+{-# options_ghc -Wno-missing-signatures #-}
 
 module Plutus.PAB.Effects.DbStore where
 
-import           Control.Monad.Freer         (Eff, LastMember, type (~>))
+import           Control.Monad.Freer         (Eff, LastMember, Member, type (~>))
+import           Control.Monad.Freer.Reader  (Reader, ask)
 import           Control.Monad.Freer.TH      (makeEffect)
 import           Data.Text                   (Text)
 import           Database.Beam
@@ -26,7 +27,6 @@ import           Database.Beam.Migrate
 import           Database.Beam.Schema.Tables
 import           Database.Beam.Sqlite
 import           Database.SQLite.Simple      (Connection)
-import           GHC.Int                     (Int32)
 
 data ContractT f
     = Contract
@@ -47,15 +47,15 @@ instance Table ContractT where
 
 data ContractInstanceT f
   = ContractInstance
-    { _contractInstanceInstanceId   :: Columnar f Text
+    { _contractInstanceId           :: Columnar f Text
     , _contractInstanceContractPath :: Columnar f Text -- TODO: Foreign Key
-    , _contractInstanceWallet       :: Columnar f Int32
+    , _contractInstanceWallet       :: Columnar f Text -- Note/Sadness: Sqlite doesn't have a integer type large enough.
     , _contractInstanceState        :: Columnar f (Maybe Text)
     , _contractInstanceActive       :: Columnar f Bool
     } deriving (Generic, Beamable)
 
 ContractInstance
-  (LensFor contractInstanceInstanceId)
+  (LensFor contractInstanceId)
   (LensFor contractInstanceContractPath)
   (LensFor contractInstanceWallet)
   (LensFor contractInstanceState)
@@ -68,7 +68,7 @@ type ContractInstanceId = PrimaryKey ContractInstanceT Identity
 
 instance Table ContractInstanceT where
   data PrimaryKey ContractInstanceT f = ContractInstanceId (Columnar f Text) deriving (Generic, Beamable)
-  primaryKey = ContractInstanceId . _contractInstanceInstanceId
+  primaryKey = ContractInstanceId . _contractInstanceId
 
 data Db f = Db
     { _contracts         :: f (TableEntity ContractT)
@@ -91,12 +91,12 @@ initialSetupStep =
         { _contractPath = field "path" (varchar Nothing) notNull unique }
        )
        <*>
-       (createTable "contract_instances" $ ContractInstance
-        { _contractInstanceInstanceId   = field "instance_id"   (varchar Nothing) notNull unique
-        , _contractInstanceWallet       = field "wallet"        int notNull
-        , _contractInstanceContractPath = field "contract_path" (varchar Nothing) notNull
-        , _contractInstanceState        = field "state"         (maybeType characterLargeObject)
-        , _contractInstanceActive       = field "active"        boolean notNull
+       (createTable "instances" $ ContractInstance
+        { _contractInstanceId           = field "instance_id"            (varchar Nothing) notNull unique
+        , _contractInstanceWallet       = field "instance_wallet"        (varchar Nothing) notNull
+        , _contractInstanceContractPath = field "instance_contract_path" (varchar Nothing) notNull
+        , _contractInstanceState        = field "instance_state"         (maybeType characterLargeObject)
+        , _contractInstanceActive       = field "instance_active"        boolean notNull
         }
        )
 
@@ -137,31 +137,33 @@ data DbStoreEffect r where
 
 handleDbStore ::
   forall effs.
-  ( LastMember IO effs
+  ( Member (Reader Connection) effs
+  , LastMember IO effs
   )
-  => Connection
-  -> DbStoreEffect
+  => DbStoreEffect
   ~> Eff effs
-handleDbStore connection = \case
-  AddRow table record ->
-    liftIO
-      $ runBeamSqliteDebug putStrLn connection
-      $ runInsert
-      $ insert table (insertValues [record])
+handleDbStore eff = do
+  connection <- ask @Connection
+  case eff of
+    AddRow table record ->
+      liftIO
+        $ runBeamSqliteDebug putStrLn connection
+        $ runInsert
+        $ insert table (insertValues [record])
 
-  SelectList q ->
-    liftIO
-      $ runBeamSqliteDebug putStrLn connection
-      $ runSelectReturningList q
+    SelectList q ->
+      liftIO
+        $ runBeamSqliteDebug putStrLn connection
+        $ runSelectReturningList q
 
-  SelectOne q ->
-    liftIO
-      $ runBeamSqliteDebug putStrLn connection
-      $ runSelectReturningOne q
+    SelectOne q ->
+      liftIO
+        $ runBeamSqliteDebug putStrLn connection
+        $ runSelectReturningOne q
 
-  UpdateRow q ->
-    liftIO
-      $ runBeamSqliteDebug putStrLn connection
-      $ runUpdate q
+    UpdateRow q ->
+      liftIO
+        $ runBeamSqliteDebug putStrLn connection
+        $ runUpdate q
 
 makeEffect ''DbStoreEffect

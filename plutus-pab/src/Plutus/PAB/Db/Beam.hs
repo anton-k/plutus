@@ -15,6 +15,7 @@ import           Control.Monad.Freer                        (Eff, interpret, run
 import           Control.Monad.Freer.Delay                  (DelayEffect, handleDelayEffect)
 import           Control.Monad.Freer.Error                  (runError)
 import qualified Control.Monad.Freer.Extras.Modify          as Modify
+import           Control.Monad.Freer.Reader                 (runReader)
 import           Database.SQLite.Simple                     (Connection)
 import           Plutus.PAB.Db.Beam.ContractDefinitionStore (handleContractDefinitionStore)
 import           Plutus.PAB.Db.Beam.ContractStore           (handleContractStore)
@@ -33,7 +34,8 @@ runBeamStoreAction ::
 runBeamStoreAction connection =
     runM
     . runError
-    . interpret (handleDbStore connection)
+    . runReader connection
+    . interpret handleDbStore
     . subsume @IO
     . handleDelayEffect
     . interpret handleContractStore

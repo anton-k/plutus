@@ -8,6 +8,17 @@ rm -rf pab-core.db*
 
 cabal run exe:plutus-pab -- --config plutus-pab.yaml migrate pab-core.db
 
-cabal run exe:plutus-pab -- --config plutus-pab.yaml contracts install --path "$(cabal exec -- which plutus-game)"
+contracts=(marlowe-app marlowe-companion-app marlowe-follow-app)
 
-cabal run exe:plutus-pab -- all-servers --config plutus-pab.yaml
+for c in "${contracts[@]}"; do
+  # shellcheck disable=SC2086
+  cabal run exe:plutus-pab -- \
+    --config plutus-pab.yaml  \
+    contracts install --path "$(cabal exec -- which $c)"
+done;
+
+cabal run exe:plutus-pab -- \
+  --config plutus-pab.yaml  \
+  contracts installed
+
+cabal run exe:plutus-pab -- -e --config plutus-pab.yaml all-servers

@@ -108,13 +108,13 @@ appEffectHandlers config trace =
         , handleContractStoreEffect =
             interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
             . interpret (Core.handleMappedReader @AppEnv dbConnection)
-            . interpret (handleDbStore undefined)
+            . interpret handleDbStore
             . reinterpret3 BeamEff.handleContractStore
 
         , handleContractDefinitionStoreEffect =
             interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
             . interpret (Core.handleMappedReader @AppEnv dbConnection)
-            . interpret (handleDbStore undefined)
+            . interpret handleDbStore
             . reinterpret3 BeamEff.handleContractDefinitionStore
 
         , handleServicesEffects = \wallet ->

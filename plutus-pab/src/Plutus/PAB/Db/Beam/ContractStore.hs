@@ -51,7 +51,7 @@ mkRow (ContractActivationArgs{caID, caWallet}) instanceId
   = ContractInstance
       (uuidStr instanceId)
       (Text.pack $ contractPath caID)
-      (fromInteger . getWallet $ caWallet)
+      (Text.pack . show . getWallet $ caWallet)
       Nothing -- No state, initially
       True    -- 'Active' immediately
 
@@ -63,10 +63,10 @@ mkContracts xs =
     where
       xs'  = map f xs
       toId = ContractInstanceId . fromMaybe (error "Couldn't convert String to UUID") . fromText
-      f ci = ( toId . _contractInstanceInstanceId $ ci
+      f ci = ( toId . _contractInstanceId $ ci
              , ContractActivationArgs
                 (ContractExe . Text.unpack . _contractInstanceContractPath $ ci)
-                (Wallet . toInteger . _contractInstanceWallet $ ci)
+                (Wallet . read . Text.unpack . _contractInstanceWallet $ ci)
              )
 
 uuidStr :: ContractInstanceId -> Text
@@ -98,12 +98,12 @@ handleContractStore = \case
       $ mkRow args instanceId
 
   -- TODO: Should we use 'args' ?
-  PutState args instanceId state ->
+  PutState _ instanceId state ->
     let encode' = Just . Text.decodeUtf8 . B.concat . LB.toChunks . encode
     in updateRow
         $ update (_contractInstances db)
             (\ci -> ci ^. contractInstanceState <-. val_ (encode' state))
-            (\ci -> ci ^. contractInstanceInstanceId ==. val_ (uuidStr instanceId))
+            (\ci -> ci ^. contractInstanceId ==. val_ (uuidStr instanceId))
 
   GetState instanceId ->
     fmap extractState
@@ -111,14 +111,14 @@ handleContractStore = \case
       $ select
       $ do
           inst <- all_ (_contractInstances db)
-          guard_ ( inst ^. contractInstanceInstanceId ==. val_ (uuidStr instanceId) )
+          guard_ ( inst ^. contractInstanceId ==. val_ (uuidStr instanceId) )
           pure inst
 
   PutStopInstance instanceId ->
     updateRow
       $ update (_contractInstances db)
           (\ci -> ci ^. contractInstanceActive <-. val_ False)
-          (\ci -> ci ^. contractInstanceInstanceId ==. val_ (uuidStr instanceId))
+          (\ci -> ci ^. contractInstanceId ==. val_ (uuidStr instanceId))
 
   GetActiveContracts ->
     fmap mkContracts
