@@ -72,24 +72,11 @@ mkContracts xs =
 uuidStr :: ContractInstanceId -> Text
 uuidStr = toText . unContractInstanceId
 
-extractState
-  :: Maybe ContractInstance
-  -> State ContractExe
--- TODO: use 'throwError' instead
-extractState Nothing  = error "Couldn't find contract instance"
-extractState (Just c) =
-  fromMaybe (error "No state found for this contract instance")
-            (join (decodeText <$> (_contractInstanceState c)))
-  where
-    decodeText = decode . toLazyByteString . encodeUtf8Builder
-
 handleContractStore ::
   forall effs.
   ( Member DbStoreEffect effs
   , Member (Error PABError) effs
   )
-  -- TODO: State t ~ ContractResponse Value Value Value ContractPABRequest
-  --       instead of 'ContractExe'
   => ContractStore ContractExe
   ~> Eff effs
 handleContractStore = \case
@@ -105,13 +92,21 @@ handleContractStore = \case
             (\ci -> ci ^. contractInstanceState <-. val_ (encode' state))
             (\ci -> ci ^. contractInstanceId ==. val_ (uuidStr instanceId))
 
-  GetState instanceId ->
-    fmap extractState
+  GetState instanceId -> do
+    let decodeText = decode . toLazyByteString . encodeUtf8Builder
+        extractState = \case
+          Nothing -> throwError $ ContractInstanceNotFound instanceId
+          Just  c ->
+            fromMaybe (throwError $ ContractStateNotFound instanceId)
+                      (pure <$> (_contractInstanceState c >>= decodeText))
+
+    join
+      $ fmap extractState
       $ selectOne
       $ select
       $ do
           inst <- all_ (_contractInstances db)
-          guard_ ( inst ^. contractInstanceId ==. val_ (uuidStr instanceId) )
+          guard_ (inst ^. contractInstanceId ==. val_ (uuidStr instanceId))
           pure inst
 
   PutStopInstance instanceId ->
