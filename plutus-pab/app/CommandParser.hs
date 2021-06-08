@@ -24,14 +24,8 @@ data AppOpts = AppOpts { minLogLevel   :: Maybe Severity
                        , logConfigPath :: Maybe FilePath
                        , configPath    :: Maybe FilePath
                        , runEkgServer  :: Bool
-                       -- , dbKind        :: DbKind
                        , cmd           :: Command
                        }
-
--- data DbKind
---   = OnDisk
---   | InMemory
---   deriving (Eq, Show, Read)
 
 parseOptions :: IO AppOpts
 parseOptions = customExecParser
@@ -51,15 +45,6 @@ ekgFlag =
         False
         True
         (short 'e' <> long "ekg" <> help "Enable the EKG server")
-
--- dbKindParser :: Parser DbKind
--- dbKindParser =
---   option
---     auto
---     (long "db" <>
---      metavar "DB" <>
---      help "Database kind. One of: OnDisk, InMemory" <>
---      value Beam)
 
 commandLineParser :: Parser AppOpts
 commandLineParser =
