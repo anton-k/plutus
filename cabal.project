@@ -57,14 +57,6 @@ allow-newer:
            , ouroboros-consensus-byron:formatting
 
            , stm:base
-           , cardano-binary:recursion-schemes
-           , jsaddle:ghcjs-base
-           , ghcjs-base:primitive
-           , ghcjs-base:time
-           , ghcjs-base:hashable
-           , ghcjs-base:aeson
-           , servant-foreign:lens
-           , servant-client:http-client
 
 constraints:
   -- aws-lambda-haskell-runtime-wai doesn't compile with newer versions
