@@ -38,7 +38,6 @@ appInstanceId=$(curl -s -H "Content-Type: application/json" \
   -d "$json" http://localhost:9080/api/new/contract/activate \
   | jq -r '.unContractInstanceId')
 
-sleep 5
 
 # ----------------------------------------------------------------
 # 4. use the marlowe plutus contract you just activated to create a marlowe
@@ -98,12 +97,28 @@ curl -s -H "Content-Type: application/json" \
   -d "$json" \
   "http://localhost:9080/api/new/contract/instance/${appInstanceId}/endpoint/create" \
 
+seconds=0
+
+echo "Checking state ..."
+
 while true; do
   states=$(curl -s \
     "http://localhost:9080/api/new/contract/instance/${companionInstanceId}/status" \
     \ | jq '.cicCurrentState.observableState | length')
 
-  echo "found ${states} item(s)"
   sleep 1
 
+  seconds=$((seconds+1))
+
+  if [[ $states -gt 0 ]]
+  then
+    echo "Found ${states} items after ${seconds} seconds."
+    exit 0
+  fi
+
+  if [[ $seconds -gt 60 ]]
+  then
+    echo "Giving up after a minute."
+    exit 1
+  fi
 done
