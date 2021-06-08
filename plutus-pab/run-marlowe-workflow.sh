@@ -97,6 +97,8 @@ curl -s -H "Content-Type: application/json" \
   -d "$json" \
   "http://localhost:9080/api/new/contract/instance/${appInstanceId}/endpoint/create" \
 
+# ----------------------------------------------------------------
+# 5. ... when you want a benchmark but can only afford bash.
 seconds=0
 
 echo "Checking state ..."
