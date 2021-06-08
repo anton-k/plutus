@@ -94,13 +94,16 @@ json=$(cat <<-END
 END
 )
 
-thing=$(curl -s -H "Content-Type: application/json" \
+curl -s -H "Content-Type: application/json" \
   -d "$json" \
   "http://localhost:9080/api/new/contract/instance/${appInstanceId}/endpoint/create" \
-  )
 
-echo "thing=$thing"
+while true; do
+  states=$(curl -s \
+    "http://localhost:9080/api/new/contract/instance/${companionInstanceId}/status" \
+    \ | jq '.cicCurrentState.observableState | length')
 
-# output status
-curl -s "http://localhost:9080/api/new/contract/instance/${companionInstanceId}/status"
+  echo "found ${states} item(s)"
+  sleep 1
 
+done
