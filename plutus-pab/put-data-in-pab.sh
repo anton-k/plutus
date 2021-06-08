@@ -8,6 +8,9 @@ rm -rf pab-core.db*
 
 cabal run exe:plutus-pab -- --config plutus-pab.yaml migrate pab-core.db
 
+# Ensure marlowe apps are up-to-date
+cd ../marlowe && cabal build && cd -
+
 contracts=(marlowe-app marlowe-companion-app marlowe-follow-app)
 
 for c in "${contracts[@]}"; do

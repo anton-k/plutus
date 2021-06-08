@@ -108,13 +108,13 @@ appEffectHandlers config trace =
         , handleContractStoreEffect =
             interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
             . interpret (Core.handleMappedReader @AppEnv dbConnection)
-            . interpret handleDbStore
+            . interpret (handleDbStore (convertLog SLoggerBridge trace))
             . reinterpret3 BeamEff.handleContractStore
 
         , handleContractDefinitionStoreEffect =
             interpret (Core.handleUserEnvReader @ContractExe @AppEnv)
             . interpret (Core.handleMappedReader @AppEnv dbConnection)
-            . interpret handleDbStore
+            . interpret (handleDbStore (convertLog SLoggerBridge trace))
             . reinterpret3 BeamEff.handleContractDefinitionStore
 
         , handleServicesEffects = \wallet ->

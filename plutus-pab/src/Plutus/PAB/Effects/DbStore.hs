@@ -17,16 +17,20 @@
 
 module Plutus.PAB.Effects.DbStore where
 
-import           Control.Monad.Freer         (Eff, LastMember, Member, type (~>))
-import           Control.Monad.Freer.Reader  (Reader, ask)
-import           Control.Monad.Freer.TH      (makeEffect)
-import           Data.Text                   (Text)
+import           Cardano.BM.Trace                        (Trace)
+import           Control.Monad.Freer                     (Eff, LastMember, Member, type (~>))
+import           Control.Monad.Freer.Reader              (Reader, ask)
+import           Control.Monad.Freer.TH                  (makeEffect)
+import qualified Control.Monad.Logger                    as MonadLogger
+import           Data.Text                               (Text)
+import qualified Data.Text                               as Text
 import           Database.Beam
 import           Database.Beam.Backend.SQL
 import           Database.Beam.Migrate
 import           Database.Beam.Schema.Tables
 import           Database.Beam.Sqlite
-import           Database.SQLite.Simple      (Connection)
+import           Database.SQLite.Simple                  (Connection)
+import           Plutus.PAB.Monitoring.MonadLoggerBridge (MonadLoggerMsg, TraceLoggerT (..))
 
 data ContractT f
     = Contract
@@ -140,30 +144,33 @@ handleDbStore ::
   ( Member (Reader Connection) effs
   , LastMember IO effs
   )
-  => DbStoreEffect
+  => Trace IO MonadLoggerMsg
+  -> DbStoreEffect
   ~> Eff effs
-handleDbStore eff = do
+handleDbStore trace eff = do
   connection <- ask @Connection
+  let traceSql = flip runTraceLoggerT trace . MonadLogger.logDebugN . Text.pack
+
   case eff of
     AddRow table record ->
       liftIO
-        $ runBeamSqliteDebug putStrLn connection
+        $ runBeamSqliteDebug traceSql connection
         $ runInsert
         $ insert table (insertValues [record])
 
     SelectList q ->
       liftIO
-        $ runBeamSqliteDebug putStrLn connection
+        $ runBeamSqliteDebug traceSql connection
         $ runSelectReturningList q
 
     SelectOne q ->
       liftIO
-        $ runBeamSqliteDebug putStrLn connection
+        $ runBeamSqliteDebug traceSql connection
         $ runSelectReturningOne q
 
     UpdateRow q ->
       liftIO
-        $ runBeamSqliteDebug putStrLn connection
+        $ runBeamSqliteDebug traceSql connection
         $ runUpdate q
 
 makeEffect ''DbStoreEffect
