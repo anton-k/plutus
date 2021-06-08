@@ -61,13 +61,15 @@ mkContracts
 mkContracts xs =
   Map.fromList xs'
     where
-      xs'  = map f xs
-      toId = ContractInstanceId . fromMaybe (error "Couldn't convert String to UUID") . fromText
-      f ci = ( toId . _contractInstanceId $ ci
-             , ContractActivationArgs
-                (ContractExe . Text.unpack . _contractInstanceContractPath $ ci)
-                (Wallet . read . Text.unpack . _contractInstanceWallet $ ci)
-             )
+      -- Silently drop those items that failed to decode to UUIDs (shouldn't
+      -- ever happen ....)
+      xs'    = [ (k, v) | (Just k, v) <- map f xs ]
+      toId i = ContractInstanceId <$> fromText i
+      f ci   = ( toId . _contractInstanceId $ ci
+               , ContractActivationArgs
+                   (ContractExe . Text.unpack . _contractInstanceContractPath $ ci)
+                   (Wallet . read . Text.unpack . _contractInstanceWallet $ ci)
+               )
 
 uuidStr :: ContractInstanceId -> Text
 uuidStr = toText . unContractInstanceId
