@@ -34,7 +34,6 @@ import qualified Cardano.Protocol.Socket.Client                 as Client
 import qualified Cardano.Wallet.Client                          as WalletClient
 import qualified Cardano.Wallet.Types                           as Wallet
 import qualified Control.Concurrent.STM                         as STM
-import           Control.Monad                                  (void)
 import           Control.Monad.Freer
 import           Control.Monad.Freer.Error                      (handleError, throwError)
 import           Control.Monad.Freer.Extras.Log                 (mapLog)
@@ -42,7 +41,6 @@ import           Control.Monad.IO.Class                         (MonadIO (..))
 import qualified Control.Monad.Logger                           as MonadLogger
 import           Data.Coerce                                    (coerce)
 import           Data.Text                                      (unpack)
-import           Database.Beam.Migrate
 import           Database.Beam.Migrate.Simple
 import qualified Database.Beam.Sqlite                           as Sqlite
 import qualified Database.Beam.Sqlite.Migrate                   as Sqlite
@@ -61,7 +59,7 @@ import           Plutus.PAB.Db.Memory.ContractStore             (InMemInstances,
 -- TODO: Use this or delete it
 import qualified Plutus.PAB.Db.Memory.ContractStore             as InMem
 import           Plutus.PAB.Effects.Contract.ContractExe        (ContractExe, handleContractEffectContractExe)
-import           Plutus.PAB.Effects.DbStore                     (Db, handleDbStore, initialSetupStep)
+import           Plutus.PAB.Effects.DbStore                     (checkedSqliteDb, handleDbStore)
 import           Plutus.PAB.Monitoring.MonadLoggerBridge        (TraceLoggerT (..))
 import           Plutus.PAB.Monitoring.Monitoring               (convertLog, handleLogMsgTrace)
 import           Plutus.PAB.Monitoring.PABLogMsg                (PABLogMsg (..))
@@ -184,23 +182,13 @@ migrate trace config = do
     connection <- dbConnect trace config
     flip runTraceLoggerT (convertLog SLoggerBridge trace) $ do
       MonadLogger.logDebugN "Running beam migration"
-      liftIO
-        $ void
-        $ runBeamMigration connection
-
-
-allowDestructive :: (MonadFail m) => BringUpToDateHooks m
-allowDestructive = defaultUpToDateHooks
-  { runIrreversibleHook = pure True }
+      liftIO $ runBeamMigration connection
 
 runBeamMigration
   :: Sqlite.Connection
-  -> IO (Maybe (CheckedDatabaseSettings Sqlite.Sqlite Db))
-runBeamMigration conn = Sqlite.runBeamSqliteDebug putStrLn conn $
-  bringUpToDateWithHooks
-    allowDestructive
-    Sqlite.migrationBackend
-    initialSetupStep
+  -> IO ()
+runBeamMigration conn = Sqlite.runBeamSqliteDebug putStrLn conn $ do
+  autoMigrate Sqlite.migrationBackend checkedSqliteDb
 
 -- TODO: Document
 dbConnect :: Trace IO (PABLogMsg ContractExe) -> DbConfig -> IO Sqlite.Connection

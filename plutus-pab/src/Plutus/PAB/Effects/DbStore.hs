@@ -83,26 +83,8 @@ data Db f = Db
 db :: DatabaseSettings be Db
 db = defaultDbSettings
 
--- TODO: Use `beam-automigrate`
-initialSetupStep
-  :: MigrationSteps Sqlite () (CheckedDatabaseSettings Sqlite Db)
-initialSetupStep =
-  migrationStep
-  "initial_setup: ContractDefinitionStore"
-  $ const
-  $ Db <$>
-       (createTable "contracts" $ Contract
-        { _contractPath = field "path" (varchar Nothing) notNull unique }
-       )
-       <*>
-       (createTable "instances" $ ContractInstance
-        { _contractInstanceId           = field "instance_id"            (varchar Nothing) notNull unique
-        , _contractInstanceWallet       = field "instance_wallet"        (varchar Nothing) notNull
-        , _contractInstanceContractPath = field "instance_contract_path" (varchar Nothing) notNull
-        , _contractInstanceState        = field "instance_state"         (maybeType characterLargeObject)
-        , _contractInstanceActive       = field "instance_active"        boolean notNull
-        }
-       )
+checkedSqliteDb :: CheckedDatabaseSettings Sqlite Db
+checkedSqliteDb = defaultMigratableDbSettings
 
 -- | Effect for managing a Db store.
 data DbStoreEffect r where
