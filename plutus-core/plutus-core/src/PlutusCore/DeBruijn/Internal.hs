@@ -45,14 +45,12 @@ import qualified Data.Bimap                as BM
 import qualified Data.Text                 as T
 import           Data.Text.Prettyprint.Doc
 
-import           Numeric.Natural
-
 import           Control.DeepSeq           (NFData)
 import           ErrorCode
 import           GHC.Generics
 
 -- | A relative index used for de Bruijn identifiers.
-newtype Index = Index Natural
+newtype Index = Index Word
     deriving stock Generic
     deriving newtype (Show, Num, Eq, Ord, Pretty)
     deriving anyclass NFData
@@ -64,7 +62,7 @@ data NamedDeBruijn = NamedDeBruijn { ndbnString :: T.Text, ndbnIndex :: Index }
 
 -- | A term name as a de Bruijn index, without the name string.
 newtype DeBruijn = DeBruijn { dbnIndex :: Index }
-    deriving (Show, Generic)
+    deriving (Show, Generic, Eq)
     deriving anyclass NFData
 
 -- | A type name as a de Bruijn index.
