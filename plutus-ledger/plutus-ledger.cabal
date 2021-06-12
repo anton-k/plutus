@@ -52,6 +52,7 @@ library
         Ledger.Oracle
         Ledger.Orphans
         Ledger.Index
+        Ledger.TextEnvelope
         Ledger.TimeSlot
         Ledger.Tokens
         Ledger.Typed.Scripts
@@ -107,6 +108,8 @@ library
         deriving-compat -any,
         newtype-generics -any,
         http-api-data -any,
+        cardano-api -any,
+        cardano-binary -any,
         cardano-crypto -any,
         deepseq -any,
         freer-simple -any,
